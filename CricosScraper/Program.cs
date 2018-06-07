@@ -19,8 +19,8 @@ namespace CricosScraper
         const string badInstituteFileName = "badIndtituteIds.txt";
         const string instititeDataFileName = "instituteData.json";
         const string scrapedInstituteFileName = "scrapedInstituteIds.txt";
-        const string courseUri = "http://cricos.education.gov.au/Course/CourseDetails.aspx?CourseId={0}";
-        const string instituteUri = "http://cricos.education.gov.au/Institution/InstitutionDetails.aspx?ProviderID={0}";
+        const string courseUrl = "http://cricos.education.gov.au/Course/CourseDetails.aspx?CourseId={0}";
+        const string instituteUrl = "http://cricos.education.gov.au/Institution/InstitutionDetails.aspx?ProviderID={0}";
         const int sleepTime = 1000 * 1 / 2; //1000(1sec) * 2
         const bool sleepEnabled = true;
         enum RequestType
@@ -50,65 +50,62 @@ namespace CricosScraper
                         Environment.Exit(0);
                     }
                     if (scrapType == 1)
-                        scrapCourses(maxValue);
+                        scrapeStuff(RequestType.COURSE_REQUEST, maxValue);
                     else if (scrapType == 2)
-                        scrapInstitutes(maxValue);
+                        scrapeStuff(RequestType.INSTITUTE_REQUEST, maxValue);
+                    else
+                    {
+                        Console.WriteLine("Not a valid scraper type selected.");
+                        Console.ReadKey();
+                        Environment.Exit(0);
+                    }
                     Console.WriteLine("operation completed.");
                     Console.ReadKey();
                     Environment.Exit(0);
                 }
                 if (scrapType == 1)
-                    scrapCourses();
+                    scrapeStuff(RequestType.COURSE_REQUEST, 100000);
                 else if (scrapType == 2)
-                    scrapInstitutes();
+                    scrapeStuff(RequestType.INSTITUTE_REQUEST, 10000);
+                else
+                {
+                    Console.WriteLine("Not a valid scraper type selected.");
+                    Console.ReadKey();
+                    Environment.Exit(0);
+                }
                 Console.WriteLine("operation completed.");
                 Console.ReadKey();
                 Environment.Exit(0);
             }
             else
             {
-                scrapCourses();
-                scrapInstitutes();
+                scrapeStuff(RequestType.COURSE_REQUEST, 100000);
+                scrapeStuff(RequestType.INSTITUTE_REQUEST, 10000);
                 Console.WriteLine("operation completed.");
                 Console.ReadKey();
             }
         }
 
-        private static void scrapCourses(int max = 100000)
+        private static void scrapeStuff(RequestType requestType, int max)
         {
-            var badCourseIds = readIdsFromFile(badCourseFileName);
-            var scrapedCourseIds = readIdsFromFile(scrapedCourseFileName);
-            for (int i = 0; i < max; i++)
-            {
-                if (badCourseIds.ContainsKey(i) || scrapedCourseIds.ContainsKey(i))
-                    continue;
-                if (sleepEnabled)
-                    Thread.Sleep(sleepTime);
-                var data = getResponseForRequest(i, RequestType.COURSE_REQUEST, badCourseFileName);
-                if (data == null)
-                    continue;
-                var obj = parsePageData(data, i, RequestType.COURSE_REQUEST);
-                if (appendJSONToDataFile(obj, courseDataFileName))
-                    appendToIdsFile(i, scrapedCourseFileName);
-            }
-        }
+            var badIdsFile = requestType == RequestType.COURSE_REQUEST ? badCourseFileName : badInstituteFileName;
+            var scrapedIdsFile = requestType == RequestType.COURSE_REQUEST ? scrapedCourseFileName : scrapedInstituteFileName;
+            var dataFile = requestType == RequestType.COURSE_REQUEST ? courseDataFileName : instititeDataFileName;
 
-        private static void scrapInstitutes(int max = 10000)
-        {
-            var badInstituteIds = readIdsFromFile(badInstituteFileName);
-            var scrapedInstituteIds = readIdsFromFile(scrapedInstituteFileName);
+            var badIds = readIdsFromFile(badIdsFile);
+            var scrapedIds = readIdsFromFile(scrapedIdsFile);
             for (int i = 0; i < max; i++)
             {
-                if (badInstituteIds.ContainsKey(i) || scrapedInstituteIds.ContainsKey(i))
+                if (badIds.ContainsKey(i) || scrapedIds.ContainsKey(i))
                     continue;
                 if (sleepEnabled)
                     Thread.Sleep(sleepTime);
-                var data = getResponseForRequest(i, RequestType.INSTITUTE_REQUEST, badInstituteFileName);
+                var data = getResponseForRequest(i, requestType, badIdsFile);
                 if (data == null)
                     continue;
-                var obj = parsePageData(data, i, RequestType.INSTITUTE_REQUEST);
-                if (appendJSONToDataFile(obj, instititeDataFileName))
-                    appendToIdsFile(i, scrapedInstituteFileName);
+                var obj = parsePageData(data, i, requestType);
+                if (appendJSONToDataFile(obj, dataFile))
+                    appendToIdsFile(i, scrapedIdsFile);
             }
         }
 
@@ -147,7 +144,7 @@ namespace CricosScraper
 
         private static string getResponseForRequest(int num, RequestType requestType, string badIdsFile)
         {
-            string uri = requestType == RequestType.COURSE_REQUEST ? courseUri : instituteUri;
+            string uri = requestType == RequestType.COURSE_REQUEST ? courseUrl : instituteUrl;
             string key = requestType == RequestType.COURSE_REQUEST ? "CourseDetails" : "InstitutionDetails";
             uri = String.Format(uri, num);
             HttpWebRequest request = WebRequest.Create(uri) as HttpWebRequest;
